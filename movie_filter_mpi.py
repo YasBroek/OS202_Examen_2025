@@ -5,7 +5,12 @@ from PIL import Image
 import os
 import numpy as np
 from scipy import signal
+from mpi4py import MPI
 import time
+
+comm = MPI.COMM_WORLD.Dup()
+rank = comm.Get_rank()
+nbp = comm.Get_size()
 
 # Fonction pour appliquer un filtre de netteté à une image
 def apply_filter(image):
@@ -44,13 +49,16 @@ if not os.path.exists("sorties/perroquets"):
 out_path = "sorties/perroquets/"
 
 output_images = []
+interval = 37//nbp + (1 if rank < 37%nbp else 0)
 t1 = time.time()
-for i in range(37):
-    image = path + "Perroquet{:04d}.jpg".format(i+1)
-    sharpen_image = apply_filter(image)
-    # On sauvegarde l'image modifiée
-    output_images.append(sharpen_image)
-    print(f"Image {i+1} traitée")
+for r in range(0, nbp):
+    if rank == r:
+        for i in range(r * interval, (r+1)*interval):
+            image = path + "Perroquet{:04d}.jpg".format(i+1)
+            sharpen_image = apply_filter(image)
+            # On sauvegarde l'image modifiée
+            output_images.append(sharpen_image)
+            print(f"Image {r*interval+1} traitée")
 print("Traitement terminé")
 t2 = time.time()
 print(t2 - t1)
